@@ -9,6 +9,8 @@ A Discord bot that plays music from YouTube in a voice channel. You control it f
 - Add YouTube links to categories. Titles are read from YouTube automatically, and a playlist link adds all of its videos at once.
 - Play a whole category (optionally shuffled) or a single track.
 - Pause, resume, skip and stop tracks, and repeat the current track.
+- Seek within the current track: jump 10 seconds back or forward, or to any position.
+- Soundboard: up to 24 tiles, each a YouTube video or a file from your computer, with your own label. Click a tile to play it right away. Tiles play next to the music and next to each other (up to 8 sounds at once).
 - See what is playing now, its progress, and the next tracks in the queue.
 - The next track is prepared in the background, so there is barely any silence between tracks.
 - The bot leaves the voice channel automatically a minute after everyone else leaves.
@@ -84,9 +86,25 @@ Then open `http://localhost:5000` (or the port you set in `FLASK_PORT`).
 2. Select a category or add a new one.
 3. Add YouTube links to the category. Leave the title empty to use the one from YouTube. A playlist link (`youtube.com/playlist?list=…`) adds all its videos (up to 200).
 4. Click **▶ Play category** to play the whole category, or **▶** next to a single track. Turn on **🔀 Shuffle** to play the category in random order.
-5. Control playback with the Pause, Skip, Stop and Repeat buttons. Each listener can set the bot's volume in Discord (right-click the bot → User Volume).
+5. Control playback with the Pause, ⏪ 10s / 10s ⏩, Skip, Stop and Repeat buttons. Each listener can set the bot's volume in Discord (right-click the bot → User Volume).
 
-Playlists are saved to `playlists.json` in the project directory. The file is created automatically on first run and is not committed to the repository.
+Soundboard files you upload are stored in the `sounds/` folder (not committed to the repository). Playlists are saved to `playlists.json` in the project directory. The file is created automatically on first run and is not committed to the repository.
+
+### Controlling playback from a pad or script
+
+The panel's HTTP API can be called from anything that sends HTTP requests, such as a Stream Deck (HTTP request plugin), a MIDI/macro pad script, or a shell. Requests must send `Content-Type: application/json` (the body may be `{}`):
+
+| Action | Request |
+|---|---|
+| Pause / resume | `POST /api/pause`, `POST /api/resume` |
+| Skip / stop | `POST /api/skip`, `POST /api/stop` |
+| Seek back 10 s | `POST /api/seek` with `{"offset": -10}` |
+| Seek forward 10 s | `POST /api/seek` with `{"offset": 10}` |
+| Jump to a time | `POST /api/seek` with `{"position": 90}` (seconds) |
+
+Example: `curl -X POST -H 'Content-Type: application/json' -d '{"offset": -10}' http://127.0.0.1:5000/api/seek`
+
+Seeking restarts the track's stream at the new position, so it takes a moment on long tracks.
 
 ## Security
 
@@ -104,9 +122,12 @@ uv run pytest
 
 ```
 main.py               # entry point: loads .env, starts the Flask panel and the bot
-bot.py                # Discord bot logic: voice channels, playback (yt-dlp + FFmpeg)
-app.py                # REST API for the web panel
-state.py              # player state and saving playlists to playlists.json
+config.py             # settings, paths and limits
+app/                  # Flask app factory, REST routes under /api, request validation
+services/tracks.py    # track and link rules, reading titles from YouTube, sound uploads
+storage/              # playlists.json and soundboard persistence (JsonStore + repositories)
+voice/                # Discord client, voice connection, playback state and player
+audio/                # PCM mixer, FFmpeg sources, yt-dlp helpers
 templates/index.html  # web panel UI
 tests/                # tests (pytest)
 ```

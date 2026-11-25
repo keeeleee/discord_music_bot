@@ -1,21 +1,15 @@
 import logging
-import os
 import threading
-from dotenv import load_dotenv
 
-load_dotenv()
-
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-FLASK_HOST = os.getenv("FLASK_HOST", "127.0.0.1")
-FLASK_PORT = int(os.getenv("FLASK_PORT", 5000))
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+from app import create_app
+from app.container import build_container
+from config import DISCORD_TOKEN, FLASK_HOST, FLASK_PORT, LOG_LEVEL, LOOPBACK_HOSTS
 
 if not DISCORD_TOKEN:
     raise ValueError("DISCORD_TOKEN is not set in .env file")
 
-import bot as discord_bot
-from app import app
+container = build_container()
+app = create_app(container)
 
 if FLASK_HOST in LOOPBACK_HOSTS:
     # Rejects requests with a foreign Host header (DNS rebinding protection).
@@ -30,4 +24,4 @@ if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     print(f"Web UI running at http://localhost:{FLASK_PORT}")
-    discord_bot.run_bot(DISCORD_TOKEN, log_level=logging.getLevelName(LOG_LEVEL))
+    container.client.run(DISCORD_TOKEN, log_level=logging.getLevelName(LOG_LEVEL))

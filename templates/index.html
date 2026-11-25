@@ -3,808 +3,217 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Discord Music Controller</title>
+<title>Music Bot Panel</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>" />
-<style>
-  :root {
-    --bg: #12141f;
-    --panel: #181b2b;
-    --card: #1f2338;
-    --card-hover: #262b45;
-    --accent: #e94560;
-    --accent2: #7b5cd6;
-    --text: #eceef5;
-    --muted: #8b92a8;
-    --success: #4ecca3;
-    --warning: #f0a04b;
-    --danger: #d9534f;
-    --border: #2b3150;
-    --radius: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    min-height: 100vh;
-  }
-  h1 { font-size: 1.35rem; font-weight: 700; }
-  h2 {
-    font-size: 0.8rem;
-    font-weight: 700;
-    margin-bottom: 12px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  h3 { font-size: 0.9rem; font-weight: 600; }
 
-  .header {
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-  }
-  .header .dot {
-    width: 12px; height: 12px;
-    border-radius: 50%;
-    background: #555;
-    transition: background-color 0.3s;
-  }
-  .header .dot.connected { background: var(--success); box-shadow: 0 0 8px var(--success); }
-
-  .layout {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    height: calc(100vh - 57px);
-  }
-  .sidebar {
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    padding: 16px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .main {
-    padding: 20px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  .card {
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: 16px;
-    border: 1px solid var(--border);
-  }
-
-  select, input[type="text"], input[type="url"] {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 9px 10px;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  select:focus, input:focus { border-color: var(--accent2); }
-
-  button {
-    cursor: pointer;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    padding: 9px 14px;
-    color: var(--text);
-    background: #2c3352;
-    transition: opacity 0.2s, transform 0.1s, background-color 0.2s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    line-height: 1.2;
-  }
-  button:hover { opacity: 0.88; }
-  button:active { transform: scale(0.97); }
-  button:disabled { opacity: 0.45; cursor: not-allowed; }
-  button:focus-visible, .tab:focus-visible, .track-item:focus-visible { outline: 2px solid var(--accent2); outline-offset: 2px; }
-
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-success { background: var(--success); color: #111; }
-  .btn-danger { background: var(--danger); color: #fff; }
-  .btn-ghost { background: transparent; color: var(--muted); }
-  .btn-ghost:hover { background: #2c3352; color: var(--text); }
-  .btn-small { padding: 5px 10px; font-size: 0.8rem; }
-  .btn-icon { padding: 5px 8px; min-width: 32px; }
-  .toggle.on { background: var(--accent2); color: #fff; }
-
-  /* Spinner shown while a button waits for the server. */
-  button.busy { pointer-events: none; opacity: 0.75; }
-  button.busy::after {
-    content: '';
-    width: 12px; height: 12px;
-    border: 2px solid currentColor;
-    border-right-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .row { display: flex; gap: 8px; align-items: center; }
-  .stack { display: flex; flex-direction: column; gap: 8px; }
-  .hint { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
-
-  .player-card {
-    background: linear-gradient(135deg, #1f2448 0%, #3a2a6b 100%);
-    border-radius: 14px;
-    padding: 22px;
-    border: 1px solid var(--border);
-  }
-  .now-playing { font-size: 0.75rem; color: #b9b3d9; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1.5px; }
-  .current-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; min-height: 1.5em; overflow-wrap: anywhere; }
-  .current-category { font-size: 0.82rem; color: var(--success); min-height: 1.2em; }
-
-  .progress { margin: 16px 0; }
-  .progress-bar {
-    height: 6px;
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%;
-    width: 0;
-    background: linear-gradient(90deg, var(--success), #6fe0c0);
-    border-radius: 3px;
-    transition: width 1s linear;
-  }
-  .progress-times {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    color: #b9b3d9;
-    margin-top: 6px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .controls button { height: 38px; }
-  .controls .spacer { flex: 1; }
-
-  .up-next { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
-  .up-next h3 { font-size: 0.75rem; color: #b9b3d9; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-  .up-next ol { list-style: none; display: flex; flex-direction: column; gap: 4px; }
-  .up-next li {
-    font-size: 0.85rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: #d8d4ee;
-  }
-  .up-next li span { color: #8f88b8; display: inline-block; width: 22px; }
-  .up-next .more { color: #8f88b8; font-size: 0.8rem; }
-
-  .category-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  .tab {
-    padding: 6px 14px;
-    border-radius: 20px;
-    background: var(--panel);
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
-    border: 1px solid var(--border);
-    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
-  }
-  .tab:hover { border-color: var(--accent2); color: var(--text); }
-  .tab.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
-
-  .playlist-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-  .playlist-head h2 { margin: 0; }
-  .playlist-head .spacer { flex: 1; }
-
-  .track-list { display: flex; flex-direction: column; gap: 6px; }
-  .track-item {
-    background: var(--panel);
-    border-radius: 8px;
-    padding: 9px 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border: 1px solid var(--border);
-    transition: border-color 0.2s, background-color 0.2s;
-  }
-  .track-item:hover { border-color: #3b4270; background: var(--card-hover); }
-  .track-item.selectable { cursor: pointer; }
-  .track-item.active { border-color: var(--accent2); background: #2a2550; }
-  .track-item.playing { border-color: var(--success); background: #15322c; }
-  .track-num { font-size: 0.8rem; color: var(--muted); width: 22px; text-align: center; flex-shrink: 0; }
-  .track-item.playing .track-num { color: var(--success); }
-  .track-info { flex: 1; min-width: 0; }
-  .track-name { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .track-url { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  .add-track-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
-
-  .status-bar {
-    margin-left: auto;
-    font-size: 0.8rem;
-    color: var(--muted);
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .badge {
-    background: var(--border);
-    border-radius: 20px;
-    padding: 3px 10px;
-    font-size: 0.75rem;
-    font-weight: 600;
-  }
-  .badge.playing { background: var(--success); color: #111; }
-  .badge.paused { background: var(--warning); color: #111; }
-
-  .empty { text-align: center; color: var(--muted); padding: 28px 12px; font-size: 0.9rem; line-height: 1.5; }
-  .empty .icon { font-size: 1.8rem; display: block; margin-bottom: 6px; }
-
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 18px;
-    font-size: 0.88rem;
-    z-index: 999;
-    transition: opacity 0.4s;
-    max-width: min(340px, calc(100vw - 32px));
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  }
-  .toast.ok { border-color: var(--success); color: var(--success); }
-  .toast.err { border-color: var(--accent); color: var(--accent); }
-  .toast.hidden { opacity: 0; pointer-events: none; }
-
-  @media (max-width: 860px) {
-    .layout { grid-template-columns: 1fr; height: auto; }
-    .sidebar { border-right: none; border-top: 1px solid var(--border); }
-    /* The player is used most during a session, so it goes first on small screens. */
-    .main { order: -1; padding: 16px; }
-    .header { padding: 12px 16px; }
-    .status-bar { margin-left: 0; width: 100%; }
-    .toast { right: 16px; bottom: 16px; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .header .dot,
-    select, input[type="text"], input[type="url"],
-    button, .tab, .track-item, .toast, .progress-fill { transition: none; }
-    button:active { transform: none; }
-    button.busy::after { animation: none; border-right-color: currentColor; }
-  }
-
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-</style>
 </head>
 <body>
 
-<div class="header">
-  <div class="dot" id="statusDot"></div>
-  <h1>🎵 Discord Music Controller</h1>
-  <div class="status-bar">
-    <span id="channelInfo"></span>
-    <span id="statusBadge" class="badge">Disconnected</span>
+<header class="header">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">🎵</div>
+    <div>
+      <h1>Music Bot</h1>
+      <p>Control panel</p>
+    </div>
   </div>
-</div>
+  <div class="voice-bar" aria-label="Voice channel">
+    <select id="guildSelect" aria-label="Discord server" title="Discord server">
+      <option value="">Server…</option>
+    </select>
+    <select id="channelSelect" aria-label="Voice channel" title="Voice channel">
+      <option value="">Voice channel…</option>
+    </select>
+    <button class="btn-success btn-small" data-action="join" title="Join the selected voice channel">Join</button>
+    <button class="btn-danger btn-small" data-action="leave" title="Leave the voice channel">Leave</button>
+  </div>
+  <div class="conn" role="status" aria-live="polite">
+    <span class="dot" id="statusDot" aria-hidden="true"></span>
+    <span id="channelInfo"></span>
+    <span id="statusBadge" class="badge">Offline</span>
+  </div>
+  <div class="kbd-hint" aria-hidden="true"><kbd>Space</kbd> pause · <kbd>←</kbd><kbd>→</kbd> ±10s · <kbd>N</kbd> next</div>
+</header>
 
 <div class="layout">
-  <div class="sidebar">
-    <div class="card">
-      <h2>Voice channel</h2>
-      <div class="stack">
-        <select id="guildSelect" aria-label="Discord server">
-          <option value="">Select server…</option>
-        </select>
-        <select id="channelSelect" aria-label="Voice channel">
-          <option value="">Select voice channel…</option>
-        </select>
-        <div class="row">
-          <button class="btn-success" style="flex:1" data-action="join">Join</button>
-          <button class="btn-danger" style="flex:1" data-action="leave">Leave</button>
+
+  <main class="main">
+    <section class="card now" aria-label="Now playing">
+      <div class="now-top">
+        <div class="art-wrap">
+          <div class="art" aria-hidden="true">🎵</div>
+          <span class="eq art-eq" id="artEq" aria-hidden="true"><i></i><i></i><i></i></span>
         </div>
-        <p class="hint">The bot leaves automatically a minute after everyone leaves the channel.</p>
+        <div class="now-info">
+          <div class="eyebrow" id="nowLabel">Nothing playing</div>
+          <div class="current-title muted" id="currentTitle">Pick a track or a sound to start</div>
+          <div class="current-category" id="currentCategory"></div>
+          <div class="upnext"><span class="upnext-label">Next</span><span id="upNextList" class="upnext-list"></span></div>
+        </div>
       </div>
-    </div>
 
-    <div class="card" style="flex:1">
-      <h2>Categories</h2>
-      <div class="row" style="margin-bottom:12px">
-        <input type="text" id="newCatInput" placeholder="New category, e.g. tavern" aria-label="New category name" />
-        <button class="btn-primary btn-icon" data-action="add-category" aria-label="Add category">+</button>
-      </div>
-      <div id="categoryList" class="track-list"></div>
-    </div>
-  </div>
-
-  <div class="main">
-    <div class="player-card">
-      <div class="now-playing">Now playing</div>
-      <div class="current-title" id="currentTitle">Nothing is playing</div>
-      <div class="current-category" id="currentCategory"></div>
-
-      <div class="progress">
-        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div>
+        <div class="progress-bar wave" id="progressBar" role="presentation" title="Click to jump to this point"><div class="waveform" id="waveform"></div><div class="waveform played-layer" id="waveformPlayed" aria-hidden="true"></div><div class="progress-fill" id="progressFill"></div></div>
         <div class="progress-times"><span id="elapsedTime">0:00</span><span id="durationTime">0:00</span></div>
       </div>
 
-      <div class="controls">
-        <button class="btn-success" data-action="play-category" title="Play the selected category">▶ Play category</button>
-        <button data-action="pause" id="btnPause">⏸ Pause</button>
-        <button class="btn-success" data-action="resume" id="btnResume" style="display:none">▶ Resume</button>
-        <button data-action="skip" title="Skip to the next track">⏭ Skip</button>
-        <button class="btn-danger" data-action="stop">⏹ Stop</button>
-        <span class="spacer"></span>
-        <button class="toggle" id="btnShuffle" data-action="toggle-shuffle" aria-pressed="false" title="Play tracks in random order">🔀 Shuffle</button>
-        <button class="toggle" id="btnLoop" data-action="toggle-loop" aria-pressed="false" title="Repeat the current track">🔁 Repeat</button>
+      <div class="transport" role="group" aria-label="Playback">
+        <button class="side-btn toggle" id="btnShuffle" data-action="toggle-shuffle" aria-pressed="false" title="Shuffle the category" aria-label="Shuffle">🔀</button>
+        <button class="seek-btn" data-action="seek-back" title="Back 10 seconds (←)">⏪ 10s</button>
+        <button class="play" id="btnPause" data-action="pause" aria-label="Pause" title="Pause (Space)">⏸</button>
+        <button class="play" id="btnResume" data-action="resume" aria-label="Resume" title="Resume (Space)" style="display:none">▶</button>
+        <button class="seek-btn" data-action="seek-forward" title="Forward 10 seconds (→)">10s ⏩</button>
+        <button class="skip-btn" data-action="skip" title="Next track (N)" aria-label="Skip to next track">⏭</button>
+        <button class="btn-danger stop-btn" data-action="stop" title="Stop and clear the queue" aria-label="Stop">⏹</button>
+        <button class="side-btn toggle" id="btnLoop" data-action="toggle-loop" aria-pressed="false" title="Repeat the current track" aria-label="Repeat">🔁</button>
       </div>
+    </section>
 
-      <div class="up-next" id="upNext" hidden>
-        <h3>Up next</h3>
-        <ol id="upNextList"></ol>
+    <div class="grid">
+      <section class="card" aria-labelledby="playlistHeading">
+        <div class="card-head">
+          <h2 id="playlistHeading">Playlist</h2>
+          <div class="search head-search"><input type="search" id="trackSearch" placeholder="Search tracks…" aria-label="Search tracks" /></div>
+          <div class="head-actions">
+            <button class="btn-ghost btn-small invisible" id="btnShowPlaying" data-action="show-playing" title="Scroll to the track that is playing">♪ Show playing</button>
+            <button class="btn-primary btn-small invisible" data-action="play-category" id="btnPlayCategory" title="Play the selected category">▶ Play all</button>
+            <span id="catMenu"></span>
+          </div>
+        </div>
+                        <dialog class="modal" id="addTrackForm" aria-labelledby="addTrackFormTitle">
+          <div class="modal-head">
+            <div><h3 id="addTrackFormTitle">Add tracks</h3><span class="hint">Pick a playlist, then paste links or choose files.</span></div>
+            <button class="btn-ghost btn-icon" data-action="close-add-track" aria-label="Close">✕</button>
+          </div>
+          <div class="modal-body">
+          <label class="field">
+            <span class="field-label">Playlist</span>
+            <select id="addTarget" aria-label="Playlist to add to"></select>
+          </label>
+          <div class="segmented" id="trackSource" role="tablist" aria-label="Where the tracks come from" data-mode="url">
+            <span class="seg-thumb" aria-hidden="true"></span>
+            <button class="seg on" role="tab" aria-selected="true" data-action="track-mode" data-mode="url">🔗 YouTube links</button>
+            <button class="seg" role="tab" aria-selected="false" data-action="track-mode" data-mode="file">📁 Files from computer</button>
+          </div>
+            <div class="panes">
+            <div class="pane on" data-tpane="url">
+              <textarea id="trackUrl" rows="4" placeholder="One link per line: videos or playlists" aria-label="YouTube video or playlist links, one per line"></textarea>
+            </div>
+            <label class="pane dropzone" data-tpane="file" id="trackDrop" tabindex="0">
+              <input type="file" id="trackFile" accept="audio/*" multiple class="sr-only" aria-label="Audio files from your computer" />
+              <span class="dz-icon" aria-hidden="true">🎧</span>
+              <span class="dz-text" id="trackDropText">Drop audio files here, or click to choose<small>several files at once · up to 15 MB each</small></span>
+            </label>
+            </div>
+            <label class="field">
+              <span class="field-label">Name</span>
+              <input type="text" id="trackTitle" placeholder="Optional, single video only" aria-label="Name (optional)" maxlength="200" />
+            </label>
+            <p class="hint">Titles come from YouTube unless you type one. A playlist link adds all its videos.</p>
+          </div>
+          <div class="modal-foot">
+            <span class="hint" id="addStatus" aria-live="polite"></span>
+            <button class="btn-ghost btn-small" data-action="close-add-track">Cancel</button>
+            <button class="btn-primary" data-action="add-track" id="btnAddTrack">Add tracks</button>
+          </div>
+        </dialog>
+        <div class="chips" id="categoryTabs" role="tablist" aria-label="Categories"></div>
+        <div class="bulk" id="bulkBar" hidden>
+          <span id="bulkCount" class="bulk-count"></span>
+          <div class="bulk-targets" id="bulkTargets"></div>
+          <button class="btn-ghost btn-small" data-action="bulk-all">Select all</button>
+          <button class="btn-danger btn-small" data-action="bulk-remove">Remove</button>
+          <button class="btn-ghost btn-small" data-action="bulk-clear">Clear</button>
+        </div>
+        <div id="trackList" class="track-list"></div>
+      </section>
+
+      <div class="stack-col">
+        <section class="card" aria-labelledby="deckHeading">
+          <div class="card-head">
+            <h2 id="deckHeading">Soundboard</h2>
+            <div class="search head-search"><input type="search" id="deckSearch" placeholder="Search sounds…" aria-label="Search sounds" /></div>
+            <div class="head-actions"><span id="deckMenu"></span></div>
+          </div>
+                              <dialog class="modal" id="deckAdd" aria-labelledby="deckAddTitle">
+            <div class="modal-head">
+              <div><h3 id="deckAddTitle">Add sounds</h3><span class="hint">Pick a group, then paste a link or choose files.</span></div>
+              <button class="btn-ghost btn-icon" data-action="close-add-sound" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+          <div class="field-block" id="deckColorRow"></div>
+              <label class="field">
+            <span class="field-label">Group</span>
+            <select id="deckGroup" aria-label="Group for the sounds"></select>
+          </label>
+          <div class="segmented" id="deckSource" role="tablist" aria-label="Where the sounds come from" data-mode="url">
+            <span class="seg-thumb" aria-hidden="true"></span>
+            <button class="seg on" role="tab" aria-selected="true" data-action="deck-mode" data-mode="url">🔗 YouTube links</button>
+            <button class="seg" role="tab" aria-selected="false" data-action="deck-mode" data-mode="file">📁 Files from computer</button>
+          </div>
+              <div class="panes">
+            <div class="pane on" data-pane="url">
+              <input type="url" id="deckUrl" placeholder="https://www.youtube.com/watch?v=…" aria-label="YouTube video link for the sound" />
+            </div>
+            <label class="pane dropzone" data-pane="file" id="deckDrop" tabindex="0">
+              <input type="file" id="deckFile" accept="audio/*" class="sr-only" aria-label="Sound file from your computer" />
+              <span class="dz-icon" aria-hidden="true">🎧</span>
+              <span class="dz-text" id="dropText">Drop an audio file here, or click to choose one<small>mp3, wav, ogg, opus, m4a, flac, webm · up to 15 MB</small></span>
+            </label>
+              </div>
+              <label class="field">
+                <span class="field-label">Name</span>
+                <input type="text" id="deckLabel" placeholder="Optional, shown on the button" aria-label="Name (optional)" maxlength="200" />
+              </label>
+              <p class="hint">Single videos only, not playlists.</p>
+            </div>
+            <div class="modal-foot">
+              <span class="hint" id="deckStatus" aria-live="polite"></span>
+              <button class="btn-ghost btn-small" data-action="close-add-sound">Cancel</button>
+              <button class="btn-primary" data-action="deck-add" id="btnAddSound">Add sounds</button>
+            </div>
+          </dialog>
+          <div class="chips" id="deckTabs" role="tablist" aria-label="Soundboard groups"></div>
+          <div class="deck-grid" id="deckGrid"></div>
+          <div id="tileEdit"></div>
+        </section>
       </div>
     </div>
+  </main>
+</div>
 
-    <div class="card">
-      <div class="playlist-head">
-        <h2>Playlist</h2>
-        <span id="activeCatLabel" class="hint">Select a category</span>
-      </div>
-      <div class="category-tabs" id="categoryTabs"></div>
-      <div id="trackList" class="track-list"></div>
-      <div class="add-track-form stack" id="addTrackForm" hidden>
-        <h3>Add from YouTube</h3>
-        <input type="url" id="trackUrl" placeholder="Video or playlist link" aria-label="YouTube video or playlist URL" />
-        <input type="text" id="trackTitle" placeholder="Title (optional)" aria-label="Track title (optional)" />
-        <div class="row">
-          <button class="btn-primary" data-action="add-track">Add</button>
-          <p class="hint">Leave the title empty to use the one from YouTube. A playlist link (youtube.com/playlist?list=…) adds all its videos.</p>
-        </div>
+<dialog class="modal" id="manageDialog" aria-labelledby="manageTitle">
+  <div class="modal-head">
+    <div><h3 id="manageTitle">Manage playlists</h3><span class="hint" id="manageHint"></span></div>
+    <button class="btn-ghost btn-icon" data-action="close-manage" aria-label="Close">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="manage-list" id="manageList"></div>
+    <div class="field">
+      <span class="field-label">New name</span>
+      <div class="manage-line">
+        <input type="text" id="manageNew" aria-label="New name" placeholder="New name" />
+        <button class="btn-primary btn-small" data-action="manage-add">Add</button>
       </div>
     </div>
   </div>
+  <div class="modal-foot">
+    <button class="btn-ghost btn-small" data-action="close-manage">Close</button>
+  </div>
+</dialog>
+<datalist id="groupList"></datalist>
+<button class="gear" id="gearBtn" data-action="style-toggle" aria-label="Style settings" aria-expanded="false" aria-controls="stylePanel" title="Style">
+  <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+</button>
+<div class="style-panel" id="stylePanel" hidden>
+  <h2>Style</h2>
+  <div class="themes" id="themeList"></div>
+  <h2 class="panel-sub">Options</h2>
+  <div class="tint-options" id="optionList"></div>
 </div>
-
 <output class="toast hidden" id="toast" aria-live="polite"></output>
 
-<script type="module">
-  const STATUS_INTERVAL = 3000;
-  const UP_NEXT_LIMIT = 5;
-
-  let selectedCategory = null;
-  let categories = {};
-  let status = {};
-  let statusReceivedAt = 0;
-
-  const $ = id => document.getElementById(id);
-
-  function esc(value) {
-    return String(value)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  }
-
-  function label(name) {
-    return name.replaceAll('_', ' ');
-  }
-
-  function formatTime(seconds) {
-    if (seconds == null || !Number.isFinite(seconds)) return '0:00';
-    const total = Math.max(0, Math.floor(seconds));
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = String(total % 60).padStart(2, '0');
-    return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
-  }
-
-  // Remembers the last server, channel and category; storage can be unavailable (private mode).
-  const memory = {
-    get(key) {
-      try { return localStorage.getItem('dmc.' + key); } catch (e) { console.debug('storage unavailable', e); return null; }
-    },
-    set(key, value) {
-      try {
-        if (value) localStorage.setItem('dmc.' + key, value);
-        else localStorage.removeItem('dmc.' + key);
-      } catch (e) { console.debug('storage unavailable', e); }
-    },
-  };
-
-  function showToast(msg, ok = true) {
-    const t = $('toast');
-    t.textContent = msg;
-    t.className = 'toast ' + (ok ? 'ok' : 'err');
-    clearTimeout(t._timer);
-    t._timer = setTimeout(() => t.classList.add('hidden'), 3500);
-  }
-
-  async function api(method, path, body) {
-    const options = {method};
-    if (method !== 'GET') {
-      // The server requires JSON on every state-changing request (CSRF protection).
-      options.headers = {'Content-Type': 'application/json'};
-      options.body = JSON.stringify(body ?? {});
-    }
-    try {
-      const res = await fetch('/api' + path, options);
-      return await res.json();
-    } catch (e) {
-      console.error(`API ${method} ${path} failed`, e);
-      showToast('Network error', false);
-      return null;
-    }
-  }
-
-  // ---------- Voice channel ----------
-
-  async function loadGuilds() {
-    const guilds = await api('GET', '/guilds');
-    if (!guilds) return;
-    const sel = $('guildSelect');
-    guilds.forEach(g => sel.add(new Option(g.name, g.id)));
-  }
-
-  async function loadChannels() {
-    const guildId = $('guildSelect').value;
-    const sel = $('channelSelect');
-    sel.length = 1;
-    if (!guildId) return;
-    const channels = await api('GET', '/guilds/' + encodeURIComponent(guildId) + '/channels');
-    channels?.forEach(c => sel.add(new Option('🔊 ' + c.name, c.id)));
-  }
-
-  async function selectServerAndChannel(guildId, channelId) {
-    const guildSel = $('guildSelect');
-    if (!guildId || ![...guildSel.options].some(o => o.value === guildId)) return;
-    guildSel.value = guildId;
-    await loadChannels();
-    if (channelId && [...$('channelSelect').options].some(o => o.value === channelId)) {
-      $('channelSelect').value = channelId;
-    }
-  }
-
-  async function joinChannel() {
-    const guildId = $('guildSelect').value;
-    const channelId = $('channelSelect').value;
-    if (!guildId || !channelId) { showToast('Select a server and a voice channel', false); return; }
-    const r = await api('POST', '/join', {guild_id: guildId, channel_id: channelId});
-    if (!r) return;
-    showToast(r.message, r.ok);
-    if (r.ok) {
-      memory.set('guild', guildId);
-      memory.set('channel', channelId);
-      await updateStatus();
-    }
-  }
-
-  async function leaveChannel() {
-    const r = await api('POST', '/leave');
-    if (r) showToast(r.ok ? 'Left the channel' : 'Not connected', r.ok);
-    await updateStatus();
-  }
-
-  // ---------- Categories and tracks ----------
-
-  async function loadCategories() {
-    const data = await api('GET', '/categories');
-    if (!data) return;
-    categories = data;
-    if (selectedCategory && !categories[selectedCategory]) selectedCategory = null;
-    renderCategoryList();
-    renderCategoryTabs();
-    renderTracks();
-  }
-
-  function renderCategoryList() {
-    const el = $('categoryList');
-    const keys = Object.keys(categories);
-    if (!keys.length) {
-      el.innerHTML = '<div class="empty"><span class="icon">📂</span>No categories yet</div>';
-      return;
-    }
-    el.innerHTML = keys.map(k => {
-      const count = categories[k].length;
-      const classes = ['track-item', 'selectable'];
-      if (k === selectedCategory) classes.push('active');
-      if (k === status.current_category && status.current_track) classes.push('playing');
-      return `
-        <div class="${classes.join(' ')}" data-action="select" data-cat="${esc(k)}" tabindex="0" role="button">
-          <div class="track-info">
-            <div class="track-name">${esc(label(k))}</div>
-            <div class="track-url">${count} track${count === 1 ? '' : 's'}</div>
-          </div>
-          <button class="btn-ghost btn-icon" data-action="delete-category" data-cat="${esc(k)}" aria-label="Delete category ${esc(label(k))}">🗑</button>
-        </div>`;
-    }).join('');
-  }
-
-  function renderCategoryTabs() {
-    $('categoryTabs').innerHTML = Object.keys(categories).map(k => `
-      <button class="tab ${k === selectedCategory ? 'active' : ''}" data-action="select" data-cat="${esc(k)}">${esc(label(k))}</button>
-    `).join('');
-  }
-
-  function isPlayingTrack(cat, track) {
-    return cat === status.current_category && status.current_track?.url === track.url;
-  }
-
-  function renderTracks() {
-    const el = $('trackList');
-    $('addTrackForm').hidden = !selectedCategory;
-    $('activeCatLabel').textContent = selectedCategory ? label(selectedCategory) : 'Select a category';
-    if (!selectedCategory) {
-      el.innerHTML = '<div class="empty"><span class="icon">🎼</span>Select a category to see its tracks</div>';
-      return;
-    }
-    const tracks = categories[selectedCategory] || [];
-    if (!tracks.length) {
-      el.innerHTML = '<div class="empty"><span class="icon">🔗</span>No tracks yet. Paste a YouTube link below.</div>';
-      return;
-    }
-    const cat = esc(selectedCategory);
-    el.innerHTML = tracks.map((t, i) => {
-      const playing = isPlayingTrack(selectedCategory, t);
-      return `
-        <div class="track-item ${playing ? 'playing' : ''}">
-          <div class="track-num">${playing ? '♪' : i + 1}</div>
-          <div class="track-info">
-            <div class="track-name">${esc(t.title || t.url)}</div>
-            <div class="track-url">${esc(t.url)}</div>
-          </div>
-          <button class="btn-success btn-icon" data-action="play-track" data-cat="${cat}" data-index="${i}" aria-label="Play">▶</button>
-          <button class="btn-ghost btn-icon" data-action="remove-track" data-cat="${cat}" data-index="${i}" aria-label="Remove">🗑</button>
-        </div>`;
-    }).join('');
-  }
-
-  function selectCategory(cat) {
-    selectedCategory = cat;
-    memory.set('category', cat);
-    renderCategoryList();
-    renderCategoryTabs();
-    renderTracks();
-  }
-
-  async function addCategory() {
-    const input = $('newCatInput');
-    const name = input.value.trim();
-    if (!name) { input.focus(); return; }
-    const r = await api('POST', '/categories', {name});
-    if (r?.ok) {
-      input.value = '';
-      showToast('Category added');
-      await loadCategories();
-    } else if (r) {
-      showToast(r.message, false);
-    }
-  }
-
-  async function deleteCategory(name) {
-    const count = categories[name]?.length ?? 0;
-    if (!confirm(`Delete category "${label(name)}" with ${count} track(s)?`)) return;
-    const r = await api('DELETE', '/categories/' + encodeURIComponent(name));
-    if (r?.ok) {
-      showToast('Category deleted');
-      if (selectedCategory === name) {
-        selectedCategory = null;
-        memory.set('category', null);
-      }
-      await loadCategories();
-    }
-  }
-
-  async function addTrack() {
-    const urlInput = $('trackUrl');
-    const url = urlInput.value.trim();
-    const title = $('trackTitle').value.trim();
-    if (!selectedCategory) return;
-    if (!url) { showToast('Paste a YouTube link first', false); urlInput.focus(); return; }
-    const r = await api('POST', '/categories/' + encodeURIComponent(selectedCategory) + '/tracks', {url, title});
-    if (r?.ok) {
-      urlInput.value = '';
-      $('trackTitle').value = '';
-      showToast(r.added === 1 ? 'Track added' : `${r.added} tracks added`);
-      await loadCategories();
-    } else if (r) {
-      showToast(r.message, false);
-    }
-  }
-
-  async function removeTrack(cat, index) {
-    const r = await api('DELETE', '/categories/' + encodeURIComponent(cat) + '/tracks/' + index);
-    if (r?.ok) { showToast('Track removed'); await loadCategories(); }
-  }
-
-  // ---------- Playback ----------
-
-  async function playTrack(cat, index) {
-    const track = categories[cat][index];
-    const r = await api('POST', '/play/track', {category: cat, index});
-    if (r) showToast(r.ok ? 'Playing: ' + (track.title || track.url) : r.message, r.ok);
-    await updateStatus();
-  }
-
-  async function playCategory() {
-    if (!selectedCategory) { showToast('Select a category first', false); return; }
-    const r = await api('POST', '/play/category', {category: selectedCategory});
-    if (r) showToast(r.ok ? 'Playing ' + label(selectedCategory) : r.message, r.ok);
-    await updateStatus();
-  }
-
-  async function simpleCommand(path, message) {
-    const r = await api('POST', path);
-    if (r?.ok && message) showToast(message);
-    await updateStatus();
-  }
-
-  async function toggleLoop() {
-    const r = await api('POST', '/loop', {loop: !status.loop});
-    if (r) showToast(r.loop ? 'Repeat is on' : 'Repeat is off');
-    await updateStatus();
-  }
-
-  async function toggleShuffle() {
-    const r = await api('POST', '/shuffle', {shuffle: !status.shuffle});
-    if (r) showToast(r.shuffle ? 'Shuffle is on' : 'Shuffle is off');
-    await updateStatus();
-  }
-
-  // ---------- Status ----------
-
-  function setToggle(id, on) {
-    const btn = $(id);
-    btn.classList.toggle('on', on);
-    btn.setAttribute('aria-pressed', String(on));
-  }
-
-  function renderProgress() {
-    const duration = status.current_track?.duration;
-    let elapsed = status.elapsed;
-    if (elapsed != null && status.is_playing) elapsed += (Date.now() - statusReceivedAt) / 1000;
-    if (duration) elapsed = Math.min(elapsed ?? 0, duration);
-    $('elapsedTime').textContent = formatTime(elapsed);
-    $('durationTime').textContent = duration ? formatTime(duration) : '0:00';
-    $('progressFill').style.width = duration ? `${(elapsed / duration) * 100}%` : '0%';
-  }
-
-  function renderUpNext() {
-    const queue = status.queue ?? [];
-    $('upNext').hidden = queue.length === 0;
-    const items = queue.slice(0, UP_NEXT_LIMIT).map((t, i) => `<li><span>${i + 1}.</span>${esc(t.title)}</li>`);
-    const more = status.queue_length - UP_NEXT_LIMIT;
-    if (more > 0) items.push(`<li class="more">+ ${more} more</li>`);
-    $('upNextList').innerHTML = items.join('');
-  }
-
-  function renderStatus(previous) {
-    const s = status;
-    $('statusDot').className = 'dot ' + (s.connected ? 'connected' : '');
-    $('channelInfo').textContent = s.channel_name ? '🔊 ' + s.channel_name : '';
-
-    const badge = $('statusBadge');
-    if (s.is_playing) {
-      badge.textContent = 'Playing';
-      badge.className = 'badge playing';
-    } else if (s.is_paused) {
-      badge.textContent = 'Paused';
-      badge.className = 'badge paused';
-    } else {
-      badge.textContent = s.connected ? 'Connected' : 'Disconnected';
-      badge.className = 'badge';
-    }
-    $('btnPause').style.display = s.is_paused ? 'none' : '';
-    $('btnResume').style.display = s.is_paused ? '' : 'none';
-
-    $('currentTitle').textContent = s.current_track ? (s.current_track.title || s.current_track.url) : 'Nothing is playing';
-    $('currentCategory').textContent = s.current_category && s.current_track ? '📁 ' + label(s.current_category) : '';
-
-    setToggle('btnLoop', s.loop);
-    setToggle('btnShuffle', s.shuffle);
-    renderUpNext();
-    renderProgress();
-
-    // Re-render lists only when the playing track changed, so hover and focus are not lost every poll.
-    const playingKey = st => `${st?.current_category}|${st?.current_track?.url}`;
-    if (playingKey(previous) !== playingKey(s)) {
-      renderCategoryList();
-      renderTracks();
-    }
-  }
-
-  async function updateStatus() {
-    const s = await api('GET', '/status');
-    if (!s) return;
-    const previous = status;
-    status = s;
-    statusReceivedAt = Date.now();
-    renderStatus(previous);
-  }
-
-  // ---------- Events ----------
-
-  const actions = {
-    'join': () => joinChannel(),
-    'leave': () => leaveChannel(),
-    'add-category': () => addCategory(),
-    'add-track': () => addTrack(),
-    'play-category': () => playCategory(),
-    'pause': () => simpleCommand('/pause'),
-    'resume': () => simpleCommand('/resume'),
-    'skip': () => simpleCommand('/skip', 'Skipped'),
-    'stop': () => simpleCommand('/stop', 'Stopped'),
-    'toggle-loop': () => toggleLoop(),
-    'toggle-shuffle': () => toggleShuffle(),
-    'select': el => selectCategory(el.dataset.cat),
-    'delete-category': el => deleteCategory(el.dataset.cat),
-    'play-track': el => playTrack(el.dataset.cat, Number(el.dataset.index)),
-    'remove-track': el => removeTrack(el.dataset.cat, Number(el.dataset.index)),
-  };
-
-  async function runAction(el) {
-    const result = actions[el.dataset.action]?.(el);
-    if (!(result instanceof Promise) || el.tagName !== 'BUTTON') return;
-    el.classList.add('busy');
-    el.setAttribute('aria-busy', 'true');
-    try {
-      await result;
-    } finally {
-      el.classList.remove('busy');
-      el.removeAttribute('aria-busy');
-    }
-  }
-
-  document.addEventListener('click', e => {
-    const el = e.target.closest('[data-action]');
-    if (!el) return;
-    e.stopPropagation();
-    runAction(el);
-  });
-
-  document.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    if (e.target.matches('[role="button"][data-action]')) runAction(e.target);
-    else if (e.target.id === 'newCatInput') addCategory();
-    else if (e.target.id === 'trackUrl' || e.target.id === 'trackTitle') runAction(document.querySelector('[data-action="add-track"]'));
-  });
-
-  $('guildSelect').addEventListener('change', loadChannels);
-
-  async function init() {
-    await loadGuilds();
-    await updateStatus();
-    if (status.connected) await selectServerAndChannel(status.guild_id, status.channel_id);
-    else await selectServerAndChannel(memory.get('guild'), memory.get('channel'));
-    selectedCategory = memory.get('category');
-    await loadCategories();
-    setInterval(updateStatus, STATUS_INTERVAL);
-    setInterval(renderProgress, 1000);
-  }
-
-  await init();
-</script>
+<script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
